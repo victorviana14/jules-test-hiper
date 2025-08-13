@@ -1,0 +1,202 @@
+# Documento de Planejamento e Especificação de Recursos: Sistema Varredor de NF-e
+
+## 1. Visão Geral do Projeto
+
+O objetivo deste projeto é desenvolver um sistema robusto, multi-tenant e responsivo para consulta, download e gerenciamento de Notas Fiscais eletrônicas (NF-e). Utilizando a biblioteca NFePHP no back-end (PHP) e Flutter no front-end, o sistema oferecerá uma solução centralizada para que grupos de empresas e empresas individuais possam gerenciar seus documentos fiscais de forma eficiente e segura.
+
+**Tecnologias Principais:**
+- **Back-end:** PHP (última versão estável) com a biblioteca `NFePHP/sped-nfe`.
+- **Front-end:** Flutter (última versão estável).
+- **Banco de Dados:** MySQL (MariaDB).
+
+---
+
+## 2. Arquitetura do Sistema
+
+O sistema será projetado com uma arquitetura multi-tenant, garantindo que os dados de cada cliente (grupo de empresas) sejam isolados e seguros.
+
+### 2.1. Estrutura Multi-Tenant e Banco de Dados
+
+Conforme a definição-chave do projeto, cada CNPJ terá seu próprio banco de dados, garantindo o nível máximo de isolamento de dados. Os grupos são uma forma lógica de agrupar empresas e gerenciar permissões.
+
+- **Banco de Dados Master (`db_master`):** Este é o cérebro do sistema. Ele **não** contém dados fiscais. Suas responsabilidades são:
+    - Gerenciar usuários, grupos e permissões.
+    - Mapear cada CNPJ ao seu respectivo nome de banco de dados.
+- **Banco de Dados da Empresa (`db_cnpj_...`):** Cada empresa (CNPJ) terá um banco de dados exclusivo.
+    - O nome do banco pode seguir um padrão, como `db_12345678000199`.
+    - Este banco de dados conterá todas as informações operacionais da empresa: notas fiscais, certificado digital, logs, etc.
+
+**Diagrama da Estrutura de BDs:**
+```
+[Sistema Varredor de NF-e]
+    |
+    +-- [Banco de Dados Master (db_master)]
+        - Tabela `groups` (id, nome_grupo)
+        - Tabela `users` (id, nome, email, senha, group_id, is_group_admin)
+        - Tabela `companies` (id, group_id, nome_fantasia, cnpj, db_name)
+        - Tabela `user_company_permissions` (user_id, company_id)
+    |
+    +-- [Banco de Dados Empresa 1 (db_11111111000111)]
+        - Tabela `invoices` (id, chave_acesso, xml, status, etc.)
+        - Tabela `certificate` (id, pfx_content, password_hash)
+        - Tabela `scan_controls` (last_nsu)
+        - ... outras tabelas da empresa
+    |
+    +-- [Banco de Dados Empresa 2 (db_22222222000122)]
+        - (Estrutura idêntica ao Banco da Empresa 1)
+```
+
+### 2.2. Gerenciamento de Usuários e Permissões
+
+Toda a gestão de acesso é centralizada no `db_master` para manter uma fonte única de verdade.
+
+- **Administrador do Sistema:** Cria os `groups` no `db_master` e designa o primeiro "Administrador do Grupo".
+- **Administrador do Grupo:**
+    - Um usuário com a flag `is_group_admin` no `db_master`.
+    - Pode adicionar novas `companies` (CNPJs) ao seu grupo.
+    - Pode criar novos `users` dentro do seu grupo.
+    - Gerencia as permissões na tabela `user_company_permissions`, definindo quais usuários do seu grupo podem acessar quais empresas.
+- **Usuário Comum:**
+    - Um usuário padrão no `db_master`. Acessa apenas as empresas vinculadas a ele na `user_company_permissions`.
+
+### 2.3. Fluxo de Autenticação e Acesso
+
+1.  **Login:** O usuário informa e-mail e senha. A API autentica as credenciais consultando a tabela `users` no `db_master`.
+2.  **Busca de Permissões:** Após a autenticação bem-sucedida, a API consulta a `user_company_permissions` (via `user_id`) para obter a lista de empresas (e seus `db_name`) que o usuário pode acessar.
+3.  **Seleção de Empresa:** O front-end exibe a lista de empresas permitidas. O usuário seleciona com qual empresa (CNPJ) deseja trabalhar.
+4.  **Troca de Conexão:** O front-end informa a API sobre a empresa selecionada. A API, para todas as requisições subsequentes naquela sessão, estabelecerá a conexão com o banco de dados da empresa selecionada (ex: `db_12345678000199`). Um token JWT conterá o `user_id` e o `company_id` ativo para garantir a segurança.
+
+---
+
+## 3. Especificação de Recursos (Front-end - Flutter)
+
+O aplicativo Flutter será responsivo, adaptando-se a desktops, tablets e smartphones.
+
+### 3.1. Telas Principais
+
+- **Login:** Campos para e-mail e senha.
+- **Seleção de Empresa:** Tela pós-login para escolher a empresa (CNPJ) ativa.
+- **Dashboard:**
+    - Exibirá cartões com informações rápidas:
+        - "Total de NF-e recebidas no mês (Empresa Atual)"
+        - "Total de NF-e recebidas no mês (Grupo)"
+        - "NF-e pendentes de ciência"
+    - Um gráfico simples mostrando o volume de notas por dia nos últimos 7 dias.
+    - **Nota de Implementação:** O card "Total de NF-e recebidas no mês (Grupo)" exigirá uma implementação especial no back-end. A API terá que iterar sobre todas as empresas do grupo do usuário, conectar-se a cada banco de dados, executar a contagem e somar os resultados. Isso pode impactar a performance e deve ser otimizado (ex: com cache).
+- **Menu de Navegação Lateral:**
+    - Dashboard
+    - Varrer/Listar Notas
+    - Ciência da Operação
+    - Cancelamentos
+    - Certificado Digital
+    - Gerenciamento de Usuários (visível apenas para administradores)
+    - Logout
+
+### 3.2. Detalhamento das Funcionalidades
+
+- **Varrer/Listar Notas:**
+    - Uma tabela/lista paginada com as notas fiscais da empresa ativa.
+    - Colunas: Emitente, Nº Nota, Série, Data de Emissão, Valor, Status (Ciência, Cancelada, etc.).
+    - Filtros: por data de emissão, emitente, status.
+    - Campo de busca pela chave de acesso.
+    - **Ações em Lote:** Checkbox para selecionar múltiplas notas. Botões para "Baixar XMLs", "Baixar PDFs (DANFEs)" ou "Baixar Ambos". O sistema deve compactar os arquivos selecionados em um único arquivo `.zip`.
+    - **Visualização de Detalhes:** Ao clicar em uma nota, abre-se uma nova tela ou modal com todos os detalhes da NF-e, renderizados de forma legível. Nesta tela, haverá botões para baixar o XML e o PDF individualmente.
+
+- **Ciência da Operação:**
+    - Tela com uma lista de notas que estão pendentes de manifestação do destinatário.
+    - O usuário poderá selecionar uma ou mais notas e clicar no botão "Confirmar Ciência da Operação". O back-end executará o evento junto à SEFAZ.
+
+- **Cancelamentos:**
+    - Tela para solicitar o cancelamento de notas (se aplicável ao escopo do sistema de recebimento). *Nota: Geralmente, o cancelamento é feito pelo emissor, mas eventos de desacordo comercial podem ser registrados aqui.*
+
+- **Gerenciamento de Certificado Digital:**
+    - Tela para o administrador da empresa.
+    - Campo para upload do arquivo de certificado digital A1 (`.pfx`).
+    - Campo para inserir a senha do certificado.
+    - Ao salvar, o arquivo do certificado (em formato binário ou base64) e a senha (criptografada) são armazenados no `db_tenant` na linha correspondente à empresa.
+
+- **Gerenciamento de Usuários e Permissões:**
+    - Visível apenas para o Administrador do Grupo.
+    - Listagem de usuários do grupo.
+    - Botão para "Adicionar Novo Usuário" (campos: nome, e-mail, senha provisória).
+    - Ao editar um usuário, o administrador verá uma lista de todas as empresas do grupo e poderá marcar/desmarcar a quais delas o usuário terá acesso.
+
+---
+
+## 4. Especificação de Recursos (Back-end - PHP)
+
+O back-end será uma API RESTful que servirá o front-end Flutter.
+
+### 4.1. Endpoints da API (Exemplos)
+
+- `POST /login`
+- `GET /companies` (retorna as empresas que o usuário logado tem acesso)
+- `POST /session/set-company/{id}` (define a empresa ativa para a sessão)
+- `GET /dashboard/stats`
+- `GET /invoices` (com query params para filtros e paginação)
+- `GET /invoices/{id}`
+- `POST /invoices/batch-download`
+- `POST /invoices/acknowledge`
+- `POST /company/certificate`
+- `GET /users`
+- `POST /users`
+- `PUT /users/{id}`
+
+### 4.2. Lógica de Negócio com NFePHP
+
+- **Armazenamento do Certificado:** O certificado A1 e sua senha devem ser armazenados de forma segura. A senha **obrigatoriamente** precisa ser criptografada (ex: usando a chave de aplicação do Laravel ou outra biblioteca de criptografia simétrica). O arquivo do certificado pode ser armazenado no banco de dados (BLOB/Base64) ou em um sistema de arquivos seguro fora da raiz pública da web.
+
+- **Busca de Notas Fiscais (Scanning):**
+    - **Estratégia:** A busca por novas notas será realizada por um processo em segundo plano (background job/cron job).
+    - **Controle:** Será criada uma tabela `scan_controls` no banco de dados do tenant para registrar a última vez que uma busca foi feita para um determinado CNPJ e qual foi o último NSU (Número Sequencial Único) retornado pela SEFAZ.
+    - **Fluxo do Job:**
+        1. O job é executado (ex: a cada 15 minutos).
+        2. Ele busca todas as empresas ativas que possuem certificado configurado.
+        3. Para cada empresa, ele carrega o certificado e a senha.
+        4. Utiliza a função `sefazDistDFe` da NFePHP, passando o último NSU salvo para aquela empresa.
+        5. A SEFAZ retorna um lote de documentos (NF-e, eventos, etc.).
+        6. O sistema processa cada documento:
+            - Se for uma NF-e resumida, armazena o resumo e a chave de acesso.
+            - Se for uma NF-e completa, baixa o XML completo usando a chave de acesso (`sefazDownloadNFe`).
+            - Salva o XML no banco de dados ou sistema de arquivos.
+            - Atualiza o último NSU na tabela `scan_controls`.
+    - **Controle de Falhas:**
+        - **Logs:** Todas as tentativas de busca, sucessos e falhas serão registradas em logs detalhados.
+        - **Retentativas:** Se a SEFAZ estiver indisponível, o job deve ter uma política de retentativa com _backoff_ (ex: tentar novamente em 5 min, depois 15 min, depois 30 min).
+        - **Notificações:** Se um certificado estiver vencido ou a senha incorreta, o sistema deve registrar o erro e notificar o administrador do grupo/empresa.
+
+- **Geração de DANFE (PDF):**
+    - Será utilizada a biblioteca `NFePHP/sped-da` para gerar os PDFs a partir do XML da NF-e armazenado. A geração pode ser feita sob demanda quando o usuário solicitar o download para evitar armazenamento desnecessário de PDFs.
+
+- **Eventos (Ciência, etc.):**
+    - A API receberá a solicitação do front-end, carregará o certificado da empresa, montará o evento de manifestação usando a `NFePHP/sped-nfe` e o transmitirá à SEFAZ. O retorno (sucesso ou falha) será registrado e enviado de volta ao front-end.
+
+---
+
+## 5. Próximos Passos e Plano de Implementação (Sugestão)
+
+1.  **Sprint 1: Estrutura e Autenticação**
+    - Configuração do ambiente de desenvolvimento (PHP/Laravel, Flutter).
+    - Modelagem e criação dos bancos de dados (Master e Tenant).
+    - Implementação do sistema de login e troca de tenant.
+    - Implementação da tela de seleção de empresa.
+
+2.  **Sprint 2: Certificado e Busca de Notas**
+    - Implementação da tela e API para upload do certificado digital.
+    - Desenvolvimento do cron job para busca de notas na SEFAZ usando NFePHP.
+    - Criação da tela de listagem de notas (apenas visualização inicial).
+
+3.  **Sprint 3: Funcionalidades da Nota Fiscal**
+    - Implementação da visualização de detalhes da NF-e.
+    - Implementação do download de XML e geração/download de PDF (DANFE).
+    - Implementação do download em lote com zip.
+
+4.  **Sprint 4: Gerenciamento e Interações**
+    - Implementação da tela de Gerenciamento de Usuários e Permissões.
+    - Implementação da funcionalidade de "Ciência da Operação".
+    - Finalização do Dashboard com dados reais.
+
+5.  **Sprint 5: Testes e Refinamento**
+    - Testes de ponta a ponta.
+    - Refinamento da interface e experiência do usuário.
+    - Preparação para o deploy.
