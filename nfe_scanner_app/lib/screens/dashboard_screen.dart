@@ -71,7 +71,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isLargeScreen = screenWidth > 600;
+
+    Widget mainContent = Scaffold(
       appBar: AppBar(
         title: Text(_isSelectionMode ? '$_selectedCount selecionada(s)' : 'Dashboard - NF-es'),
         actions: _isSelectionMode
@@ -99,7 +102,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 // Ícone para ativar o modo de seleção, pode ser adicionado se preferir
               ],
       ),
-      drawer: const MainDrawer(),
+      // The drawer is handled outside of the Scaffold for large screens
+      drawer: isLargeScreen ? null : const MainDrawer(),
       body: ListView.builder(
         itemCount: _nfeList.length,
         itemBuilder: (context, index) {
@@ -136,6 +140,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           );
         },
       ),
-    );
+    ); // Removed the semicolon here as it's now part of a larger return statement
+
+    if (isLargeScreen) {
+      return Row(
+        children: [
+          const MainDrawer(), // Display the drawer persistently
+          Expanded(child: mainContent), // Take the remaining space
+        ],
+      );
+    }
+    return mainContent; // For small screens, return the Scaffold with the drawer property
   }
 }

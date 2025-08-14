@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/main_drawer.dart';
 
 // A simple data model for a company
 class _Company {
@@ -51,23 +52,35 @@ class _CompanySelectionScreenState extends State<CompanySelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isLargeScreen = screenWidth > 600;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Selecione a Empresa'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              padding: const EdgeInsets.all(8.0),
-              itemCount: _companies.length,
-              itemBuilder: (context, index) {
-                final company = _companies[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4.0),
-                  child: ListTile(
-                    title: Text(company.name),
-                    subtitle: Text(company.cnpj),
-                    trailing: const Icon(Icons.arrow_forward_ios),
+      drawer: isLargeScreen ? null : const MainDrawer(),
+      body: Row(
+        children: [
+          if (isLargeScreen)
+            const MainDrawer(),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    padding: const EdgeInsets.all(8.0),
+                    itemCount: _companies.length,
+                    itemBuilder: (context, index) {
+                      final company = _companies[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: ListTile(
+                          title: Text(company.name),
+                          subtitle: Text(company.cnpj),
+                          trailing: const Icon(Icons.arrow_forward_ios),
+                        ),
+                      );
+                    },
                     onTap: () => _selectCompany(company),
                   ),
                 );

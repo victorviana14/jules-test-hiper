@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/main_drawer.dart';
 
 class UserManagementScreen extends StatelessWidget {
   const UserManagementScreen({super.key});
@@ -12,6 +13,7 @@ class UserManagementScreen extends StatelessWidget {
       body: const Center(
         child: Text('Tela de Gerenciamento de Usuários'),
       ),
+      drawer: const MainDrawer(),
     );
   }
 }

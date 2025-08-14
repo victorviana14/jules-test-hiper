@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/main_drawer.dart';
 
 class DigitalCertificateScreen extends StatelessWidget {
   const DigitalCertificateScreen({super.key});
@@ -12,6 +13,7 @@ class DigitalCertificateScreen extends StatelessWidget {
       body: const Center(
         child: Text('Tela de Gerenciamento de Certificado Digital'),
       ),
+      drawer: const MainDrawer(),
     );
   }
 }
