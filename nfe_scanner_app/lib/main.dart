@@ -28,7 +28,7 @@ class MyApp extends StatelessWidget {
         '/': (context) => const LoginScreen(),
         '/company-selection': (context) => const CompanySelectionScreen(),
         '/dashboard': (context) => const DashboardScreen(),
-        '/nfe-list': (context) => const NfeListScreen(),
+        '/nfe-list': (context) => const OperationScienceScreen(),
         '/operation-science': (context) => const OperationScienceScreen(),
         '/cancellations': (context) => const CancellationScreen(),
         '/digital-certificate': (context) => const DigitalCertificateScreen(),

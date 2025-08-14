@@ -9,11 +9,11 @@ class MainDrawer extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.zero,
         children: <Widget>[
-          const DrawerHeader(
+          DrawerHeader(
             decoration: BoxDecoration(
-              color: Colors.blue,
+              color: Theme.of(context).primaryColor,
             ),
-            child: Text(
+            child: const Text(
               'NFe Scanner',
               style: TextStyle(
                 color: Colors.white,
@@ -30,19 +30,11 @@ class MainDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.document_scanner),
-            title: const Text('Varrer/Listar Notas'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/nfe-list');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.science),
+            leading: const Icon(Icons.receipt_long),
             title: const Text('Ciência da Operação'),
             onTap: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/operation-science');
+              Navigator.pushReplacementNamed(context, '/operation-science');
             },
           ),
           ListTile(
@@ -50,32 +42,35 @@ class MainDrawer extends StatelessWidget {
             title: const Text('Cancelamentos'),
             onTap: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/cancellations');
+              Navigator.pushReplacementNamed(context, '/cancellations');
             },
           ),
+          const Divider(),
           ListTile(
             leading: const Icon(Icons.security),
             title: const Text('Certificado Digital'),
             onTap: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/digital-certificate');
+              Navigator.pushReplacementNamed(context, '/digital-certificate');
+            },
+          ),
+          // A lógica de visibilidade será adicionada posteriormente com base no perfil do usuário
+          ListTile(
+            leading: const Icon(Icons.people),
+            title: const Text('Gerenciamento de Usuários'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushReplacementNamed(context, '/user-management');
             },
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.group),
-            title: const Text('Gerenciamento de Usuários'),
-            onTap: () {
-               Navigator.pop(context);
-               Navigator.pushNamed(context, '/user-management');
-            },
-          ),
-          ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
             onTap: () {
+              // Lógica de logout
               Navigator.pop(context);
-              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+              Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
             },
           ),
         ],
