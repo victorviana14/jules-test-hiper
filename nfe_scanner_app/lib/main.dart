@@ -6,7 +6,6 @@ import 'package:nfe_scanner_app/screens/operation_science_screen.dart';
 import 'package:nfe_scanner_app/screens/cancellation_screen.dart';
 import 'package:nfe_scanner_app/screens/digital_certificate_screen.dart';
 import 'package:nfe_scanner_app/screens/user_management_screen.dart';
-import 'package:nfe_scanner_app/widgets/main_drawer.dart';
 
 void main() {
   runApp(const MyApp());
